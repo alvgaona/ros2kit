@@ -1,0 +1,16 @@
+[package]
+name = "ros2kit"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+colcon = []
+
+[dependencies]
+anyhow = "1"
+dirs = "5"
+ignore = "0.4"
+quick-xml = "0.37"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["process", "sync", "io-util", "time", "fs", "rt", "macros"] }
