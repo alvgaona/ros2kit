@@ -87,10 +87,10 @@ pub fn find_log_by_pid(pid: u32) -> Option<PathBuf> {
 
 /// Finds a log file for a currently running node, preferring PID-based lookup over name-based.
 pub fn find_log_for_running_node(node_name: &str) -> Option<PathBuf> {
-    if let Some(pid) = find_node_pid(node_name) {
-        if let Some(path) = find_log_by_pid(pid) {
-            return Some(path);
-        }
+    if let Some(pid) = find_node_pid(node_name)
+        && let Some(path) = find_log_by_pid(pid)
+    {
+        return Some(path);
     }
     find_log_by_node(node_name)
 }

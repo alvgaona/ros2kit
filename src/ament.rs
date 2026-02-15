@@ -151,13 +151,13 @@ impl Env {
 
             if let Ok(entries) = std::fs::read_dir(&index_dir) {
                 for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if seen.insert(name.to_string()) {
-                            packages.push(Package {
-                                name: name.to_string(),
-                                prefix: prefix.clone(),
-                            });
-                        }
+                    if let Some(name) = entry.file_name().to_str()
+                        && seen.insert(name.to_string())
+                    {
+                        packages.push(Package {
+                            name: name.to_string(),
+                            prefix: prefix.clone(),
+                        });
                     }
                 }
             }
@@ -198,23 +198,23 @@ impl Env {
                 if !path.is_file() {
                     continue;
                 }
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if is_executable(&path) {
-                        let language = detect_language(&path);
-                        let metadata = path.metadata().ok();
-                        let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-                        let modified = metadata
-                            .as_ref()
-                            .and_then(|m| m.modified().ok())
-                            .unwrap_or_else(std::time::SystemTime::now);
-                        executables.push(Executable {
-                            package: package.to_string(),
-                            name: name.to_string(),
-                            language,
-                            size_bytes,
-                            modified,
-                        });
-                    }
+                if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                    && is_executable(&path)
+                {
+                    let language = detect_language(&path);
+                    let metadata = path.metadata().ok();
+                    let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+                    let modified = metadata
+                        .as_ref()
+                        .and_then(|m| m.modified().ok())
+                        .unwrap_or_else(std::time::SystemTime::now);
+                    executables.push(Executable {
+                        package: package.to_string(),
+                        name: name.to_string(),
+                        language,
+                        size_bytes,
+                        modified,
+                    });
                 }
             }
         }
@@ -237,15 +237,14 @@ impl Env {
             if let Ok(entries) = std::fs::read_dir(dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if is_launch_file(name)
-                            && !launch_files.iter().any(|lf: &LaunchFile| lf.name == name)
-                        {
-                            launch_files.push(LaunchFile {
-                                package: package.to_string(),
-                                name: name.to_string(),
-                            });
-                        }
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                        && is_launch_file(name)
+                        && !launch_files.iter().any(|lf: &LaunchFile| lf.name == name)
+                    {
+                        launch_files.push(LaunchFile {
+                            package: package.to_string(),
+                            name: name.to_string(),
+                        });
                     }
                 }
             }
@@ -273,14 +272,14 @@ impl Env {
             if let Ok(entries) = std::fs::read_dir(&dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if let Some(stem) = name.strip_suffix(&format!(".{}", ext)) {
-                            defs.push(InterfaceDef {
-                                package: package.to_string(),
-                                kind,
-                                name: stem.to_string(),
-                            });
-                        }
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                        && let Some(stem) = name.strip_suffix(&format!(".{}", ext))
+                    {
+                        defs.push(InterfaceDef {
+                            package: package.to_string(),
+                            kind,
+                            name: stem.to_string(),
+                        });
                     }
                 }
             }
@@ -434,10 +433,10 @@ fn is_executable(_path: &Path) -> bool {
 fn detect_language(path: &Path) -> Language {
     use std::io::Read;
 
-    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-        if name.ends_with(".py") {
-            return Language::Python;
-        }
+    if let Some(name) = path.file_name().and_then(|n| n.to_str())
+        && name.ends_with(".py")
+    {
+        return Language::Python;
     }
 
     let mut file = match std::fs::File::open(path) {

@@ -295,17 +295,17 @@ fn newest_source_mtime(dir: &Path) -> Option<std::time::SystemTime> {
         .build();
 
     for entry in walker.flatten() {
-        if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+        if !entry.file_type().is_some_and(|ft| ft.is_file()) {
             continue;
         }
-        if let Ok(meta) = entry.path().metadata() {
-            if let Ok(mtime) = meta.modified() {
-                newest = Some(match newest {
-                    Some(current) if mtime > current => mtime,
-                    Some(current) => current,
-                    None => mtime,
-                });
-            }
+        if let Ok(meta) = entry.path().metadata()
+            && let Ok(mtime) = meta.modified()
+        {
+            newest = Some(match newest {
+                Some(current) if mtime > current => mtime,
+                Some(current) => current,
+                None => mtime,
+            });
         }
     }
 
@@ -353,7 +353,7 @@ pub fn scan_multiple(roots: &[PathBuf]) -> Vec<WorkspacePackage> {
         .git_global(false)
         .git_exclude(true)
         .filter_entry(|entry| {
-            if !entry.file_type().map_or(false, |ft| ft.is_dir()) {
+            if !entry.file_type().is_some_and(|ft| ft.is_dir()) {
                 return true;
             }
             let name = entry.file_name().to_string_lossy();
@@ -370,7 +370,7 @@ pub fn scan_multiple(roots: &[PathBuf]) -> Vec<WorkspacePackage> {
                     Err(_) => return ignore::WalkState::Continue,
                 };
 
-                if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+                if !entry.file_type().is_some_and(|ft| ft.is_file()) {
                     return ignore::WalkState::Continue;
                 }
 
@@ -379,27 +379,27 @@ pub fn scan_multiple(roots: &[PathBuf]) -> Vec<WorkspacePackage> {
                 }
 
                 let path = entry.path();
-                if let Some(dir) = path.parent() {
-                    if let Some(info) = parse_package_xml(path) {
-                        let workspace = workspaces
-                            .iter()
-                            .find(|ws| path.starts_with(&ws.root))
-                            .cloned()
-                            .unwrap_or_else(|| {
-                                Arc::new(Workspace {
-                                    root: dir.to_path_buf(),
-                                })
-                            });
-                        packages.lock().unwrap().push(WorkspacePackage {
-                            name: info.name,
-                            version: info.version,
-                            description: info.description,
-                            path: dir.to_path_buf(),
-                            workspace,
-                            build_type: info.build_type,
-                            dependencies: info.dependencies,
+                if let Some(dir) = path.parent()
+                    && let Some(info) = parse_package_xml(path)
+                {
+                    let workspace = workspaces
+                        .iter()
+                        .find(|ws| path.starts_with(&ws.root))
+                        .cloned()
+                        .unwrap_or_else(|| {
+                            Arc::new(Workspace {
+                                root: dir.to_path_buf(),
+                            })
                         });
-                    }
+                    packages.lock().unwrap().push(WorkspacePackage {
+                        name: info.name,
+                        version: info.version,
+                        description: info.description,
+                        path: dir.to_path_buf(),
+                        workspace,
+                        build_type: info.build_type,
+                        dependencies: info.dependencies,
+                    });
                 }
 
                 ignore::WalkState::Continue
@@ -481,10 +481,11 @@ fn parse_package_xml(package_xml: &Path) -> Option<PackageXmlInfo> {
                         });
                     }
                     tag if DEP_TAGS.contains(&tag) => {
-                        if let Some(dep) = text.map(|t| t.trim().to_string()) {
-                            if !dep.is_empty() && seen_deps.insert(dep.clone()) {
-                                dependencies.push(dep);
-                            }
+                        if let Some(dep) = text.map(|t| t.trim().to_string())
+                            && !dep.is_empty()
+                            && seen_deps.insert(dep.clone())
+                        {
+                            dependencies.push(dep);
                         }
                     }
                     _ => {}

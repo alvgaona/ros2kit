@@ -267,10 +267,8 @@ impl Launcher {
                 if let Ok(Some(_)) = child.try_wait() {
                     exited.push(id);
                 }
-            } else {
-                if !is_process_alive(id) {
-                    exited.push(id);
-                }
+            } else if !is_process_alive(id) {
+                exited.push(id);
             }
         }
         for id in &exited {
