@@ -317,11 +317,7 @@ impl Env {
             .join(package)
             .join(kind)
             .join(format!("{}.{}", name, ext));
-        if path.exists() {
-            Some(path)
-        } else {
-            None
-        }
+        if path.exists() { Some(path) } else { None }
     }
 
     fn add_workspace_prefixes(&mut self, workspace: &Workspace) {

@@ -240,31 +240,19 @@ impl WorkspacePackage {
     /// Returns the path to `CMakeLists.txt` if it exists in the package directory.
     pub fn cmake_lists(&self) -> Option<PathBuf> {
         let path = self.path.join("CMakeLists.txt");
-        if path.is_file() {
-            Some(path)
-        } else {
-            None
-        }
+        if path.is_file() { Some(path) } else { None }
     }
 
     /// Returns the path to `setup.py` if it exists in the package directory.
     pub fn setup_py(&self) -> Option<PathBuf> {
         let path = self.path.join("setup.py");
-        if path.is_file() {
-            Some(path)
-        } else {
-            None
-        }
+        if path.is_file() { Some(path) } else { None }
     }
 
     /// Returns the path to `Cargo.toml` if it exists in the package directory.
     pub fn cargo_toml(&self) -> Option<PathBuf> {
         let path = self.path.join("Cargo.toml");
-        if path.is_file() {
-            Some(path)
-        } else {
-            None
-        }
+        if path.is_file() { Some(path) } else { None }
     }
 
     /// Determines the build status by comparing source file mtimes against the

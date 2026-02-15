@@ -92,8 +92,10 @@ impl Builder {
 
         let mut cmd = Command::new("colcon");
         cmd.arg("build");
-        cmd.arg("--build-base").arg(config.workspace_root.join("build"));
-        cmd.arg("--install-base").arg(config.workspace_root.join("install"));
+        cmd.arg("--build-base")
+            .arg(config.workspace_root.join("build"));
+        cmd.arg("--install-base")
+            .arg(config.workspace_root.join("install"));
         cmd.arg("--base-paths").arg(&config.workspace_root);
 
         match &config.packages {
