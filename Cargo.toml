@@ -2,6 +2,13 @@
 name = "ros2kit"
 version = "0.1.0"
 edition = "2024"
+authors = ["Alvaro Gaona <alvgaona@gmail.com>"]
+description = "Rust utility library for ROS 2 workspace management and ament environment discovery"
+license = "LGPL-3.0"
+repository = "https://github.com/alvgaona/ros2kit"
+homepage = "https://github.com/alvgaona/ros2kit"
+keywords = ["ros2", "robotics", "ament", "colcon"]
+categories = ["development-tools", "science::robotics"]
 
 [features]
 colcon = []
