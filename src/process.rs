@@ -48,6 +48,8 @@ pub struct NodeLaunchOptions<'a> {
     pub exec_path: &'a Path,
     /// Additional environment variables for the spawned process.
     pub env: &'a [(&'a str, &'a str)],
+    /// Run in foreground with inherited stdio instead of redirecting to a log file.
+    pub foreground: bool,
 }
 
 /// Options for launching a ROS 2 launch file.
@@ -74,6 +76,8 @@ pub struct LaunchResult {
     pub log_path: PathBuf,
     /// Channel receiver that streams log output lines in real time.
     pub output_rx: mpsc::Receiver<String>,
+    /// Exit code of the process (only set in foreground mode).
+    pub exit_code: Option<i32>,
 }
 
 /// Manages spawning, tracking, and stopping ROS 2 processes.
@@ -116,17 +120,6 @@ impl Launcher {
             }
         }
 
-        let _ = std::fs::create_dir_all(log_dir());
-
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis())
-            .unwrap_or(0);
-        let log_path = log_dir().join(format!("{}_{}.log", opts.executable, timestamp));
-
-        let log_file = std::fs::File::create(&log_path).context("Failed to create log file")?;
-        let log_file_err = log_file.try_clone().context("Failed to clone log file")?;
-
         let mut cmd = Command::new(opts.exec_path);
 
         let has_ros_args = !opts.params.is_empty() || !opts.namespace.is_empty();
@@ -150,6 +143,34 @@ impl Launcher {
         for (key, value) in opts.env {
             cmd.env(key, value);
         }
+
+        if opts.foreground {
+            cmd.stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit());
+            let mut child = cmd
+                .spawn()
+                .with_context(|| format!("Failed to spawn {}", opts.exec_path.display()))?;
+            let pid = child.id().unwrap_or(0);
+            let status = child.wait().await?;
+            let (_tx, rx) = mpsc::channel(1);
+            return Ok(LaunchResult {
+                pid,
+                log_path: PathBuf::new(),
+                output_rx: rx,
+                exit_code: status.code(),
+            });
+        }
+
+        let _ = std::fs::create_dir_all(log_dir());
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        let log_path = log_dir().join(format!("{}_{}.log", opts.executable, timestamp));
+        let log_file = std::fs::File::create(&log_path).context("Failed to create log file")?;
+        let log_file_err = log_file.try_clone().context("Failed to clone log file")?;
+
         cmd.stdout(Stdio::from(log_file))
             .stderr(Stdio::from(log_file_err));
         #[cfg(unix)]
@@ -168,6 +189,7 @@ impl Launcher {
             pid,
             log_path,
             output_rx: rx,
+            exit_code: None,
         })
     }
 
@@ -215,6 +237,7 @@ impl Launcher {
             pid,
             log_path,
             output_rx: rx,
+            exit_code: None,
         })
     }
 
