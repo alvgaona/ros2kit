@@ -1,6 +1,6 @@
 [package]
 name = "ros2kit"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Alvaro Gaona <alvgaona@gmail.com>"]
 description = "Rust utility library for ROS 2 workspace management and ament environment discovery"
