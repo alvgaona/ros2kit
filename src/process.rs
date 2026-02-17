@@ -66,6 +66,8 @@ pub struct LaunchFileLaunchOptions<'a> {
     pub args: &'a [(&'a str, &'a str)],
     /// Additional environment variables for the spawned process.
     pub env: &'a [(&'a str, &'a str)],
+    /// Run in foreground with inherited stdio instead of redirecting to a log file.
+    pub foreground: bool,
 }
 
 /// Result returned after successfully launching a process.
@@ -218,6 +220,22 @@ impl Launcher {
         for (key, value) in opts.env {
             cmd.env(key, value);
         }
+        if opts.foreground {
+            cmd.stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit());
+            let mut child = cmd.spawn().context("Failed to spawn launch file")?;
+            let pid = child.id().unwrap_or(0);
+            let status = child.wait().await?;
+            let (_tx, rx) = mpsc::channel(1);
+            return Ok(LaunchResult {
+                pid,
+                log_path: PathBuf::new(),
+                output_rx: rx,
+                exit_code: status.code(),
+            });
+        }
+
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
         #[cfg(unix)]
         cmd.process_group(0);
