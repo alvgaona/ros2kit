@@ -1,14 +1,17 @@
 use std::path::{Path, PathBuf};
+#[cfg(feature = "workspace")]
 use std::sync::Arc;
 
 use anyhow::Result;
 
+#[cfg(feature = "workspace")]
 use crate::workspace::Workspace;
 
 /// The ament environment, providing access to installed ROS 2 packages.
 ///
 /// Discovers packages, executables, launch files, and interfaces from
-/// `AMENT_PREFIX_PATH` prefixes and workspace `install/` directories.
+/// `AMENT_PREFIX_PATH` prefixes and the local `install/` directory.
+/// With the `workspace` feature, also supports overlaying multiple workspace `install/` directories.
 pub struct Env {
     prefixes: Vec<PathBuf>,
 }
@@ -85,9 +88,14 @@ impl InterfaceKind {
 impl Env {
     /// Creates an ament environment from `AMENT_PREFIX_PATH`, overlaying cwd's `install/`.
     pub fn from_env() -> Result<Self> {
-        Self::from_env_with_workspaces(&[])
+        let path = std::env::var("AMENT_PREFIX_PATH")
+            .map_err(|_| anyhow::anyhow!("AMENT_PREFIX_PATH is not set"))?;
+        let mut env = Self::from_path(&path);
+        env.add_local_install_prefixes();
+        Ok(env)
     }
 
+    #[cfg(feature = "workspace")]
     /// Creates an ament environment from `AMENT_PREFIX_PATH`, overlaying registered
     /// workspaces' `install/` directories (in order) and cwd last (highest priority).
     /// Duplicate workspace roots are skipped.
@@ -319,6 +327,7 @@ impl Env {
         if path.exists() { Some(path) } else { None }
     }
 
+    #[cfg(feature = "workspace")]
     fn add_workspace_prefixes(&mut self, workspace: &Workspace) {
         for prefix in workspace.install_prefixes().into_iter().rev() {
             if !self.prefixes.contains(&prefix) {
@@ -328,17 +337,30 @@ impl Env {
     }
 
     fn add_local_install_prefixes(&mut self) {
-        let cwd = Workspace {
-            root: PathBuf::from("."),
-        };
-        self.add_workspace_prefixes(&cwd);
+        let install_dir = PathBuf::from("install");
+        if !install_dir.is_dir() {
+            return;
+        }
+        if let Ok(entries) = std::fs::read_dir(&install_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir()
+                    && let Ok(canonical) = path.canonicalize()
+                    && !self.prefixes.contains(&canonical)
+                {
+                    self.prefixes.insert(0, canonical);
+                }
+            }
+        }
     }
 
+    #[cfg(feature = "workspace")]
     /// Sets environment variables to overlay cwd's `install/` onto the current process.
     pub fn apply_workspace_overlay(&self) {
         self.apply_workspace_overlays(&[]);
     }
 
+    #[cfg(feature = "workspace")]
     /// Sets `AMENT_PREFIX_PATH`, `PYTHONPATH`, and library path environment variables
     /// to overlay all registered workspaces and cwd onto the current process.
     ///
@@ -396,6 +418,7 @@ impl Env {
     }
 }
 
+#[cfg(feature = "workspace")]
 fn prepend_env_path(var: &str, new_paths: &[String]) {
     let existing = std::env::var(var).unwrap_or_default();
     let existing_parts: Vec<&str> = existing.split(':').filter(|s| !s.is_empty()).collect();

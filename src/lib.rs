@@ -1,5 +1,8 @@
-//! ROS 2 toolkit library for workspace scanning, ament environment discovery,
-//! process management, and build integration.
+//! ROS 2 toolkit library for ament environment discovery, process management,
+//! launch file support, and log file discovery.
+//!
+//! Optional features: `workspace` for workspace scanning and overlay management,
+//! `colcon` for build integration.
 
 /// Ament environment discovery: installed packages, executables, launch files, interfaces.
 pub mod ament;
@@ -12,7 +15,8 @@ pub mod launch;
 pub mod log;
 /// Process launching, lifecycle management, and output streaming.
 pub mod process;
-/// Workspace scanning, package discovery, and overlay path management.
+/// Workspace scanning, package discovery, and overlay path management (requires `workspace` feature).
+#[cfg(feature = "workspace")]
 pub mod workspace;
 
 pub use ament::{Env, Executable, InterfaceDef, InterfaceKind, LaunchFile, Package};
@@ -20,6 +24,7 @@ pub use ament::{Env, Executable, InterfaceDef, InterfaceKind, LaunchFile, Packag
 pub use build::{BuildConfig, BuildResult, BuildStatus, Builder, CmakeBuildType, PackageSelection};
 pub use launch::LaunchArg;
 pub use process::{LaunchType, Launcher};
+#[cfg(feature = "workspace")]
 pub use workspace::{
     PackageBuildStatus, PackageBuildType, Workspace, WorkspaceLayout, WorkspacePackage,
 };

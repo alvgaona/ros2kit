@@ -99,7 +99,10 @@ impl Launcher {
         }
     }
 
-    /// Spawns a ROS 2 node process and begins tailing its log output.
+    /// Spawns a ROS 2 node process.
+    ///
+    /// In foreground mode, inherits stdio and waits for exit.
+    /// Otherwise, redirects output to a log file and tails it.
     pub async fn launch_node(&mut self, opts: NodeLaunchOptions<'_>) -> Result<LaunchResult> {
         if !opts.exec_path.exists() {
             anyhow::bail!(
@@ -195,7 +198,10 @@ impl Launcher {
         })
     }
 
-    /// Spawns a ROS 2 launch file via the Python helper and pipes its output to a log file.
+    /// Spawns a ROS 2 launch file via the Python helper.
+    ///
+    /// In foreground mode, inherits stdio and waits for exit.
+    /// Otherwise, redirects output to a log file and tails it.
     pub async fn launch_file(&mut self, opts: LaunchFileLaunchOptions<'_>) -> Result<LaunchResult> {
         let name = opts
             .file
