@@ -42,11 +42,23 @@ pub enum Language {
     Unknown,
 }
 
+/// The format of a ROS 2 launch file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaunchFormat {
+    Python,
+    Xml,
+    Yaml,
+    Unknown,
+}
+
 /// A launch file installed by a ROS 2 package.
 #[derive(Debug, Clone)]
 pub struct LaunchFile {
     pub package: String,
     pub name: String,
+    pub format: LaunchFormat,
+    pub size_bytes: u64,
+    pub modified: std::time::SystemTime,
 }
 
 /// A ROS 2 interface definition (message, service, or action).
@@ -249,9 +261,27 @@ impl Env {
                         && is_launch_file(name)
                         && !launch_files.iter().any(|lf: &LaunchFile| lf.name == name)
                     {
+                        let format = if name.ends_with(".py") {
+                            LaunchFormat::Python
+                        } else if name.ends_with(".xml") {
+                            LaunchFormat::Xml
+                        } else if name.ends_with(".yaml") {
+                            LaunchFormat::Yaml
+                        } else {
+                            LaunchFormat::Unknown
+                        };
+                        let metadata = path.metadata().ok();
+                        let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+                        let modified = metadata
+                            .as_ref()
+                            .and_then(|m| m.modified().ok())
+                            .unwrap_or_else(std::time::SystemTime::now);
                         launch_files.push(LaunchFile {
                             package: package.to_string(),
                             name: name.to_string(),
+                            format,
+                            size_bytes,
+                            modified,
                         });
                     }
                 }

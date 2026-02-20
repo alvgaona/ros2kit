@@ -19,7 +19,7 @@ pub mod process;
 #[cfg(feature = "workspace")]
 pub mod workspace;
 
-pub use ament::{Env, Executable, InterfaceDef, InterfaceKind, LaunchFile, Package};
+pub use ament::{Env, Executable, InterfaceDef, InterfaceKind, LaunchFile, LaunchFormat, Package};
 #[cfg(feature = "colcon")]
 pub use build::{BuildConfig, BuildResult, BuildStatus, Builder, CmakeBuildType, PackageSelection};
 pub use launch::LaunchArg;
