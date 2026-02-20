@@ -350,6 +350,7 @@ pub fn scan_multiple(roots: &[PathBuf]) -> Vec<WorkspacePackage> {
 
     builder
         .hidden(true)
+        .follow_links(true)
         .git_ignore(true)
         .git_global(false)
         .git_exclude(true)
