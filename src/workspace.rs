@@ -255,8 +255,17 @@ impl WorkspacePackage {
         if path.is_file() { Some(path) } else { None }
     }
 
-    /// Determines the build status by comparing source file mtimes against the
-    /// colcon build marker in the workspace's `build/` directory.
+    pub fn latest_build_log(&self) -> Option<String> {
+        let log_file = self
+            .workspace
+            .root
+            .join("log")
+            .join("latest_build")
+            .join(&self.name)
+            .join("stdout_stderr.log");
+        std::fs::read_to_string(&log_file).ok()
+    }
+
     pub fn build_status(&self) -> PackageBuildStatus {
         let build_marker = self
             .workspace

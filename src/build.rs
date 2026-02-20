@@ -2,8 +2,11 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use anyhow::{Context, Result};
-use tokio::process::{Child, Command};
+use tokio::process::Command;
 use tokio::sync::{mpsc, watch};
 
 /// Configuration for a colcon build invocation.
@@ -67,26 +70,29 @@ pub enum BuildStatus {
 /// Handles returned after starting a build, used to stream output and status.
 pub struct BuildResult {
     /// Receiver for raw stdout/stderr lines from colcon.
-    pub output_rx: mpsc::Receiver<String>,
+    pub output_rx: mpsc::UnboundedReceiver<String>,
     /// Receiver for the latest parsed build status.
     pub status_rx: watch::Receiver<BuildStatus>,
 }
 
 /// Manages a single colcon build subprocess.
 pub struct Builder {
-    child: Option<Child>,
+    pgid: Arc<AtomicU32>,
 }
 
 impl Builder {
-    /// Creates a builder with no active child process.
     pub fn new() -> Self {
-        Self { child: None }
+        Self {
+            pgid: Arc::new(AtomicU32::new(0)),
+        }
     }
 
-    /// Spawns a colcon build using the given configuration.
-    /// Returns an error if a build is already in progress.
+    pub fn is_building(&self) -> bool {
+        self.pgid.load(Ordering::Relaxed) != 0
+    }
+
     pub async fn build(&mut self, config: BuildConfig) -> Result<BuildResult> {
-        if self.child.is_some() {
+        if self.is_building() {
             anyhow::bail!("Build already in progress. Cancel first.");
         }
 
@@ -133,10 +139,14 @@ impl Builder {
             .spawn()
             .context("Failed to spawn colcon build. Is colcon installed?")?;
 
+        if let Some(pid) = child.id() {
+            self.pgid.store(pid, Ordering::Relaxed);
+        }
+
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
 
-        let (output_tx, output_rx) = mpsc::channel(1000);
+        let (output_tx, output_rx) = mpsc::unbounded_channel();
         let (status_tx, status_rx) = watch::channel(BuildStatus::Building {
             package: String::new(),
             progress: "Starting...".to_string(),
@@ -152,7 +162,7 @@ impl Builder {
                 let mut reader = BufReader::new(stdout).lines();
                 while let Ok(Some(line)) = reader.next_line().await {
                     parse_and_update_status(&line, &status);
-                    let _ = tx.send(line).await;
+                    let _ = tx.send(line);
                 }
             });
         }
@@ -163,17 +173,19 @@ impl Builder {
                 use tokio::io::{AsyncBufReadExt, BufReader};
                 let mut reader = BufReader::new(stderr).lines();
                 while let Ok(Some(line)) = reader.next_line().await {
-                    let _ = tx.send(line).await;
+                    let _ = tx.send(line);
                 }
             });
         }
 
         let mut child_for_wait = child;
         let wait_status_tx = status_tx;
+        let pgid_handle = self.pgid.clone();
         tokio::spawn(async move {
             let result = child_for_wait.wait().await;
             let duration = start_time.elapsed();
             let success = result.map(|s| s.success()).unwrap_or(false);
+            pgid_handle.store(0, Ordering::Relaxed);
             let _ = wait_status_tx.send(BuildStatus::Finished { success, duration });
         });
 
@@ -183,26 +195,26 @@ impl Builder {
         })
     }
 
-    /// Sends SIGTERM to the build process group, then force-kills after 2 seconds.
     pub async fn cancel(&mut self) -> Result<()> {
-        if let Some(ref child) = self.child {
-            #[cfg(unix)]
-            if let Some(pid) = child.id() {
-                let pgid = format!("-{}", pid);
-                let _ = tokio::process::Command::new("kill")
-                    .args(["-TERM", &pgid])
-                    .output()
-                    .await;
-            }
+        let pid = self.pgid.swap(0, Ordering::Relaxed);
+        if pid == 0 {
+            return Ok(());
         }
 
-        if let Some(mut child) = self.child.take() {
-            tokio::select! {
-                _ = child.wait() => {}
-                _ = tokio::time::sleep(Duration::from_secs(2)) => {
-                    let _ = child.kill().await;
-                }
-            }
+        #[cfg(unix)]
+        {
+            let pgid = format!("-{}", pid);
+            let _ = tokio::process::Command::new("kill")
+                .args(["-TERM", &pgid])
+                .output()
+                .await;
+
+            tokio::time::sleep(Duration::from_secs(2)).await;
+
+            let _ = tokio::process::Command::new("kill")
+                .args(["-KILL", &pgid])
+                .output()
+                .await;
         }
 
         Ok(())
@@ -213,6 +225,20 @@ impl Default for Builder {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn clean(workspace_root: &std::path::Path, packages: &[String]) -> Result<usize> {
+    let mut removed = 0;
+    for pkg in packages {
+        for dir in &["build", "install", "log"] {
+            let path = workspace_root.join(dir).join(pkg);
+            if path.exists() {
+                std::fs::remove_dir_all(&path)?;
+                removed += 1;
+            }
+        }
+    }
+    Ok(removed)
 }
 
 fn parse_and_update_status(line: &str, status_tx: &watch::Sender<BuildStatus>) {
