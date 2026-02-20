@@ -102,9 +102,7 @@ impl Env {
     pub fn from_env() -> Result<Self> {
         let path = std::env::var("AMENT_PREFIX_PATH")
             .map_err(|_| anyhow::anyhow!("AMENT_PREFIX_PATH is not set"))?;
-        let mut env = Self::from_path(&path);
-        env.add_local_install_prefixes();
-        Ok(env)
+        Ok(Self::from_path(&path))
     }
 
     #[cfg(feature = "workspace")]
@@ -163,21 +161,13 @@ impl Env {
         let mut seen = std::collections::HashSet::new();
 
         for prefix in &self.prefixes {
-            let index_dir = prefix
-                .join("share")
-                .join("ament_index")
-                .join("resource_index")
-                .join("packages");
+            Self::scan_prefix_packages(prefix, &mut packages, &mut seen);
 
-            if let Ok(entries) = std::fs::read_dir(&index_dir) {
+            if let Ok(entries) = std::fs::read_dir(prefix) {
                 for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str()
-                        && seen.insert(name.to_string())
-                    {
-                        packages.push(Package {
-                            name: name.to_string(),
-                            prefix: prefix.clone(),
-                        });
+                    let sub = entry.path();
+                    if sub.is_dir() {
+                        Self::scan_prefix_packages(&sub, &mut packages, &mut seen);
                     }
                 }
             }
@@ -185,6 +175,31 @@ impl Env {
 
         packages.sort_by(|a, b| a.name.cmp(&b.name));
         packages
+    }
+
+    fn scan_prefix_packages(
+        prefix: &Path,
+        packages: &mut Vec<Package>,
+        seen: &mut std::collections::HashSet<String>,
+    ) {
+        let index_dir = prefix
+            .join("share")
+            .join("ament_index")
+            .join("resource_index")
+            .join("packages");
+
+        if let Ok(entries) = std::fs::read_dir(&index_dir) {
+            for entry in entries.flatten() {
+                if let Some(name) = entry.file_name().to_str()
+                    && seen.insert(name.to_string())
+                {
+                    packages.push(Package {
+                        name: name.to_string(),
+                        prefix: prefix.to_path_buf(),
+                    });
+                }
+            }
+        }
     }
 
     /// Returns the ament prefix path for a package, or `None` if not found.
@@ -198,6 +213,16 @@ impl Env {
                 .join(name);
             if marker.exists() {
                 return Some(prefix.clone());
+            }
+            let isolated = prefix
+                .join(name)
+                .join("share")
+                .join("ament_index")
+                .join("resource_index")
+                .join("packages")
+                .join(name);
+            if isolated.exists() {
+                return Some(prefix.join(name));
             }
         }
         None
@@ -343,6 +368,12 @@ impl Env {
         }
 
         None
+    }
+
+    pub fn resolve_msg_definition(&self, type_name: &str) -> Option<String> {
+        let (package, name) = type_name.split_once('/')?;
+        let path = self.interface_path(package, "msg", name)?;
+        std::fs::read_to_string(&path).ok()
     }
 
     /// Resolves the full path to an interface definition file (`.msg`, `.srv`, or `.action`).

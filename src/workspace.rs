@@ -135,47 +135,26 @@ impl Workspace {
             return OverlayPaths::default();
         }
 
+        let canonical = install_dir
+            .canonicalize()
+            .unwrap_or_else(|_| install_dir.clone());
+
         let mut paths = OverlayPaths::default();
-        if let Ok(entries) = std::fs::read_dir(&install_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if !path.is_dir() {
-                    continue;
-                }
-                let canonical = match path.canonicalize() {
-                    Ok(p) => p,
-                    Err(_) => continue,
-                };
+        paths.ament_prefixes.push(canonical.clone());
 
-                let ament_index = canonical
-                    .join("share")
-                    .join("ament_index")
-                    .join("resource_index")
-                    .join("packages");
-                if !ament_index.is_dir() {
-                    continue;
-                }
+        let lib_dir = canonical.join("lib");
+        if lib_dir.is_dir() {
+            paths.lib_paths.push(lib_dir.clone());
 
-                paths.ament_prefixes.push(canonical.clone());
-
-                let lib_dir = canonical.join("lib");
-                if lib_dir.is_dir() {
-                    paths.lib_paths.push(lib_dir.clone());
-
-                    for py_dir in &["python3.12", "python3.11", "python3.10", "python3.9"] {
-                        let site_packages = lib_dir.join(py_dir).join("site-packages");
-                        if site_packages.is_dir() {
-                            paths.python_paths.push(site_packages);
-                            break;
-                        }
-                    }
+            for py_dir in &["python3.12", "python3.11", "python3.10", "python3.9"] {
+                let site_packages = lib_dir.join(py_dir).join("site-packages");
+                if site_packages.is_dir() {
+                    paths.python_paths.push(site_packages);
+                    break;
                 }
             }
         }
 
-        paths.ament_prefixes.sort();
-        paths.lib_paths.sort();
-        paths.python_paths.sort();
         paths
     }
 }
