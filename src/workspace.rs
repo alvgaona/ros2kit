@@ -256,29 +256,30 @@ impl WorkspacePackage {
     }
 
     /// Determines the build status by comparing source file mtimes against the
-    /// ament index marker in the workspace's `install/` directory.
+    /// colcon build marker in the workspace's `build/` directory.
     pub fn build_status(&self) -> PackageBuildStatus {
-        let install_marker = self
+        let build_marker = self
             .workspace
             .root
-            .join("install")
+            .join("build")
             .join(&self.name)
-            .join("share")
-            .join("ament_index")
-            .join("resource_index")
-            .join("packages")
-            .join(&self.name);
+            .join("colcon_build.rc");
 
-        if !install_marker.is_file() {
+        if !build_marker.is_file() {
             return PackageBuildStatus::NotBuilt;
         }
 
-        let install_mtime = install_marker.metadata().and_then(|m| m.modified()).ok();
+        let rc = std::fs::read_to_string(&build_marker).unwrap_or_default();
+        if rc.trim() != "0" {
+            return PackageBuildStatus::Dirty;
+        }
+
+        let build_mtime = build_marker.metadata().and_then(|m| m.modified()).ok();
 
         let source_mtime = newest_source_mtime(&self.path);
 
-        match (source_mtime, install_mtime) {
-            (Some(src), Some(inst)) if src > inst => PackageBuildStatus::Dirty,
+        match (source_mtime, build_mtime) {
+            (Some(src), Some(built)) if src > built => PackageBuildStatus::Dirty,
             _ => PackageBuildStatus::Built,
         }
     }
