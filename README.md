@@ -5,24 +5,28 @@ Rust utility library for ROS 2 workspace management and ament environment discov
 ## Modules
 
 - **ament** — Discover installed packages, executables, launch files, and interfaces from `AMENT_PREFIX_PATH`
-- **workspace** — Scan workspaces for source packages, detect build status, manage overlay paths
-- **process** — Launch and manage ROS 2 node/launch file processes
+- **build** — Colcon build integration (requires `colcon` feature)
 - **launch** — Parse launch file arguments via Python helper
 - **log** — Find and tail ROS 2 log files
-- **build** — Colcon build integration (requires `colcon` feature)
+- **process** — Launch and manage ROS 2 node/launch file processes
+- **record** — MCAP bag recording (requires `mcap` feature)
+- **workspace** — Scan workspaces for source packages, detect build status, manage overlay paths
+  (requires `workspace` feature)
 
 ## Usage
 
 ```toml
 [dependencies]
-ros2kit = { path = "../ros2kit" }
+ros2kit = "0.2"
 
-# Enable colcon build support
-ros2kit = { path = "../ros2kit", features = ["colcon"] }
+# Enable specific features
+ros2kit = { version = "0.2", features = ["colcon", "workspace", "mcap"] }
 ```
 
 ## Features
 
-| Feature  | Description                          |
-|----------|--------------------------------------|
-| `colcon` | Enables the `build` module for colcon build integration |
+| Feature     | Description                                                          |
+|-------------|----------------------------------------------------------------------|
+| `colcon`    | Enables the `build` module for colcon build integration              |
+| `mcap`      | Enables the `record` module for MCAP bag recording                   |
+| `workspace` | Enables the `workspace` module for package discovery and overlay management |
