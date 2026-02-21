@@ -13,10 +13,10 @@ pub mod build;
 pub mod launch;
 /// ROS 2 log file discovery and tailing.
 pub mod log;
-#[cfg(feature = "mcap")]
-pub mod record;
 /// Process launching, lifecycle management, and output streaming.
 pub mod process;
+#[cfg(feature = "mcap")]
+pub mod record;
 /// Workspace scanning, package discovery, and overlay path management (requires `workspace` feature).
 #[cfg(feature = "workspace")]
 pub mod workspace;
@@ -25,9 +25,9 @@ pub use ament::{Env, Executable, InterfaceDef, InterfaceKind, LaunchFile, Launch
 #[cfg(feature = "colcon")]
 pub use build::{BuildConfig, BuildResult, BuildStatus, Builder, CmakeBuildType, PackageSelection};
 pub use launch::LaunchArg;
+pub use process::{LaunchType, Launcher};
 #[cfg(feature = "mcap")]
 pub use record::{RecordConfig, RecordResult, RecordStats, Recorder, TopicRecording};
-pub use process::{LaunchType, Launcher};
 #[cfg(feature = "workspace")]
 pub use workspace::{
     PackageBuildStatus, PackageBuildType, Workspace, WorkspaceLayout, WorkspacePackage,

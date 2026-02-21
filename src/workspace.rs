@@ -200,11 +200,7 @@ fn collect_prefix_paths(prefix: &Path, paths: &mut OverlayPaths) {
             paths.python_paths.push(site_packages.clone());
             if let Ok(entries) = std::fs::read_dir(&site_packages) {
                 for entry in entries.flatten() {
-                    if entry
-                        .file_name()
-                        .to_string_lossy()
-                        .ends_with(".egg-link")
-                    {
+                    if entry.file_name().to_string_lossy().ends_with(".egg-link") {
                         if let Ok(content) = std::fs::read_to_string(entry.path()) {
                             if let Some(line) = content.lines().next() {
                                 let target = PathBuf::from(line.trim());

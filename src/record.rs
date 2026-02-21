@@ -2,14 +2,14 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
+use mcap::Writer;
 use mcap::records::MessageHeader;
 use mcap::write::WriteOptions;
-use mcap::Writer;
 use tokio::sync::{mpsc, watch};
 
 use crate::ament::Env;
@@ -67,9 +67,7 @@ impl Recorder {
 
         let file = File::create(&config.output_path)?;
         let buf = BufWriter::new(file);
-        let mut writer = WriteOptions::new()
-            .profile("ros2")
-            .create(buf)?;
+        let mut writer = WriteOptions::new().profile("ros2").create(buf)?;
 
         let mut channels = Vec::new();
         let mut receivers = Vec::new();
@@ -84,18 +82,11 @@ impl Recorder {
                 }
             };
 
-            let schema_id = writer.add_schema(
-                &topic_rec.type_name,
-                "ros2msg",
-                definition.as_bytes(),
-            )?;
+            let schema_id =
+                writer.add_schema(&topic_rec.type_name, "ros2msg", definition.as_bytes())?;
 
-            let channel_id = writer.add_channel(
-                schema_id,
-                &topic_rec.topic,
-                "cdr",
-                &BTreeMap::new(),
-            )?;
+            let channel_id =
+                writer.add_channel(schema_id, &topic_rec.topic, "cdr", &BTreeMap::new())?;
 
             channels.push(channel_id);
             receivers.push(topic_rec.rx);
