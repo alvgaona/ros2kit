@@ -38,6 +38,12 @@ impl Workspace {
         }
     }
 
+    pub fn is_workspace(&self) -> bool {
+        self.root.join("src").is_dir()
+            || self.root.join("install").is_dir()
+            || self.root.join("pixi.toml").is_file()
+    }
+
     /// Returns `true` if an `install/` directory exists in this workspace.
     pub fn has_install(&self) -> bool {
         self.root.join("install").is_dir()
