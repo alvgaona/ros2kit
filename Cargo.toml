@@ -23,4 +23,12 @@ mcap = { version = "0.24", optional = true }
 quick-xml = { version = "0.37", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["process", "sync", "io-util", "time", "fs", "rt", "macros"] }
+tokio = { version = "1", features = ["process", "sync", "io-util", "time", "fs", "rt", "rt-multi-thread", "macros"] }
+
+[[example]]
+name = "build"
+required-features = ["colcon"]
+
+[[example]]
+name = "record"
+required-features = ["mcap"]
