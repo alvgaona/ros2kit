@@ -129,7 +129,6 @@ impl Env {
             }
         }
 
-        env.add_local_install_prefixes();
         Ok(env)
     }
 
@@ -393,24 +392,6 @@ impl Env {
         for prefix in workspace.install_prefixes().into_iter().rev() {
             if !self.prefixes.contains(&prefix) {
                 self.prefixes.insert(0, prefix);
-            }
-        }
-    }
-
-    fn add_local_install_prefixes(&mut self) {
-        let install_dir = PathBuf::from("install");
-        if !install_dir.is_dir() {
-            return;
-        }
-        if let Ok(entries) = std::fs::read_dir(&install_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir()
-                    && let Ok(canonical) = path.canonicalize()
-                    && !self.prefixes.contains(&canonical)
-                {
-                    self.prefixes.insert(0, canonical);
-                }
             }
         }
     }

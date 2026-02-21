@@ -146,19 +146,30 @@ impl Workspace {
             .unwrap_or_else(|_| install_dir.clone());
 
         let mut paths = OverlayPaths::default();
-        paths.ament_prefixes.push(canonical.clone());
 
-        let lib_dir = canonical.join("lib");
-        if lib_dir.is_dir() {
-            paths.lib_paths.push(lib_dir.clone());
+        let Ok(entries) = std::fs::read_dir(&canonical) else {
+            return paths;
+        };
 
-            for py_dir in &["python3.12", "python3.11", "python3.10", "python3.9"] {
-                let site_packages = lib_dir.join(py_dir).join("site-packages");
-                if site_packages.is_dir() {
-                    paths.python_paths.push(site_packages);
-                    break;
-                }
+        for entry in entries.flatten() {
+            let sub = entry.path();
+            if !sub.is_dir() {
+                continue;
             }
+            if !sub
+                .join("share")
+                .join("ament_index")
+                .join("resource_index")
+                .join("packages")
+                .is_dir()
+            {
+                continue;
+            }
+            collect_prefix_paths(&sub, &mut paths);
+        }
+
+        if paths.ament_prefixes.is_empty() {
+            collect_prefix_paths(&canonical, &mut paths);
         }
 
         paths
@@ -174,6 +185,40 @@ pub struct OverlayPaths {
     pub python_paths: Vec<PathBuf>,
     /// Library paths (`LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH` entries).
     pub lib_paths: Vec<PathBuf>,
+}
+
+fn collect_prefix_paths(prefix: &Path, paths: &mut OverlayPaths) {
+    paths.ament_prefixes.push(prefix.to_path_buf());
+    let lib_dir = prefix.join("lib");
+    if !lib_dir.is_dir() {
+        return;
+    }
+    paths.lib_paths.push(lib_dir.clone());
+    for py_dir in &["python3.12", "python3.11", "python3.10", "python3.9"] {
+        let site_packages = lib_dir.join(py_dir).join("site-packages");
+        if site_packages.is_dir() {
+            paths.python_paths.push(site_packages.clone());
+            if let Ok(entries) = std::fs::read_dir(&site_packages) {
+                for entry in entries.flatten() {
+                    if entry
+                        .file_name()
+                        .to_string_lossy()
+                        .ends_with(".egg-link")
+                    {
+                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                            if let Some(line) = content.lines().next() {
+                                let target = PathBuf::from(line.trim());
+                                if target.is_dir() {
+                                    paths.python_paths.push(target);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
 }
 
 /// Build system type declared in a package's `package.xml` under `<export><build_type>`.
