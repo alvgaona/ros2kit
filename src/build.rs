@@ -22,6 +22,8 @@ pub struct BuildConfig {
     pub build_type: CmakeBuildType,
     /// Maximum number of parallel colcon workers, if limited.
     pub parallel_jobs: Option<usize>,
+    /// Use `--symlink-install` for faster Python package rebuilds.
+    pub symlink_install: bool,
 }
 
 /// Selects which packages to build.
@@ -103,6 +105,10 @@ impl Builder {
         cmd.arg("--install-base")
             .arg(config.workspace_root.join("install"));
         cmd.arg("--base-paths").arg(&config.workspace_root);
+
+        if config.symlink_install {
+            cmd.arg("--symlink-install");
+        }
 
         match &config.packages {
             PackageSelection::All => {}
