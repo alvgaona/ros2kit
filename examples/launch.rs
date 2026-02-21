@@ -21,8 +21,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Launch file: {}", path.display());
     println!("Python: {}\n", python.display());
 
-    let launch_args: Vec<LaunchArg> =
-        ros2kit::launch::parse_launch_args(&python, &path).await?;
+    let launch_args: Vec<LaunchArg> = ros2kit::launch::parse_launch_args(&python, &path).await?;
 
     if launch_args.is_empty() {
         println!("No declared arguments.");
