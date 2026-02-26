@@ -191,8 +191,8 @@ impl Builder {
             let result = child_for_wait.wait().await;
             let duration = start_time.elapsed();
             let success = result.map(|s| s.success()).unwrap_or(false);
-            pgid_handle.store(0, Ordering::Relaxed);
             let _ = wait_status_tx.send(BuildStatus::Finished { success, duration });
+            pgid_handle.store(0, Ordering::Relaxed);
         });
 
         Ok(BuildResult {
